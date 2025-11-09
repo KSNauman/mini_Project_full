@@ -1,19 +1,76 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Choose Mode</title>
   <meta charset="UTF-8">
+  <title>Choose Mode</title>
   <style>
-    body { background: #111; color: #0f0; text-align: center; font-family: monospace; padding-top: 100px; }
-    button { background: #0f0; color: #111; padding: 20px 40px; border: none; margin: 20px; font-size: 20px; cursor: pointer; }
-    button:hover { background: #0ff; }
+    body {
+      background-color: #111;
+      color: #e6e6e6;
+      font-family: system-ui, -apple-system, "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 500;
+      color: #f2f2f2;
+      margin-bottom: 50px;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      align-items: center;
+    }
+
+    button {
+      background-color: #1c1c1c;
+      color: #eaeaea;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 16px 40px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
+      min-width: 240px;
+    }
+
+    button:hover {
+      background-color: #252525;
+      border-color: #444;
+      transform: scale(1.02);
+    }
+
+    footer {
+      position: absolute;
+      bottom: 20px;
+      font-size: 0.8rem;
+      color: #666;
+      letter-spacing: 0.4px;
+    }
+
+    @media (max-width: 700px) {
+      h1 { font-size: 1.4rem; }
+      button { font-size: 0.95rem; padding: 14px 30px; }
+    }
   </style>
 </head>
 <body>
   <h1>YOLO Heart Rate Detector</h1>
+
   <form action="/start" method="post">
-    <button name="mode" value="gym">🏋️ Gym User</button>
-    <button name="mode" value="coma">🛏️ Coma Patient</button>
+    <button name="mode" value="gym">Gym User</button>
+    <button name="mode" value="patient">Patient</button>
   </form>
+
+  <footer>© {{ current_year or "2025" }} Heart Rate Monitor</footer>
 </body>
 </html>

@@ -1,42 +1,165 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Heart Rate Monitor</title>
   <meta charset="UTF-8">
+  <title>Heart Rate Monitor</title>
   <style>
-    body { background: #000; color: #0f0; text-align: center; font-family: monospace; }
-    h1 { color: #0ff; }
-    #feed { float: right; width: 45%; margin: 20px; border: 2px solid #0f0; }
-    #status { font-size: 30px; margin-top: 120px; }
+    body {
+      background-color: #111;
+      color: #e6e6e6;
+      font-family: system-ui, -apple-system, "Inter", sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    header {
+      width: 100%;
+      text-align: center;
+      padding: 20px 0;
+      font-size: 1.3rem;
+      font-weight: 500;
+      color: #f2f2f2;
+      border-bottom: 1px solid #222;
+      background: #111;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 900px;
+      padding: 40px 20px;
+    }
+
+    #feed {
+      width: 640px;
+      height: 480px;
+      border-radius: 10px;
+      object-fit: cover;
+      background-color: #000;
+      transition: opacity 0.3s ease;
+    }
+
+    #status {
+      margin-top: 25px;
+      font-size: 1rem;
+      color: #ccc;
+      text-align: center;
+      transition: color 0.3s ease;
+    }
+
+    #mirrorBtn {
+      margin-top: 25px;
+      background-color: transparent;
+      color: #eaeaea;
+      border: 1px solid #333;
+      border-radius: 6px;
+      padding: 10px 22px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+
+    #mirrorBtn:hover {
+      background-color: #1c1c1c;
+      border-color: #3a3a3a;
+    }
+
+    footer {
+      width: 100%;
+      text-align: center;
+      padding: 15px 0;
+      font-size: 0.8rem;
+      color: #555;
+      border-top: 1px solid #222;
+      background: #111;
+    }
+
+    @media (max-width: 700px) {
+      #feed {
+        width: 90%;
+        height: auto;
+      }
+      #status {
+        font-size: 0.9rem;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>{{ mode|capitalize }} Mode</h1>
-  <img id="feed" src="/video_feed" />
-  <div id="status">Loading BPM...</div>
+  <header>{{ mode|capitalize }} Mode</header>
+
+  <main>
+    <img id="feed" src="/video_feed" alt="Live Feed" />
+    <div id="status">Initializing Heart Rate Monitor...</div>
+    <button id="mirrorBtn">Open Mirror View</button>
+  </main>
+
+  <footer>© {{ current_year or "2025" }} Heart Rate Monitor</footer>
 
   <script>
     const mode = "{{ mode }}";
+    let mirrorActive = false;
 
+    // BPM Updater
     async function updateStatus() {
-      const res = await fetch('/bpm');
-      const bpm = parseInt(await res.text()) || 0;
-      let msg = "";
+      try {
+        const res = await fetch('/bpm');
+        const bpm = parseInt(await res.text()) || 0;
+        let msg = "";
 
-      if (mode === "gym") {
-        if (bpm > 160) msg = "⚠️ HR HIGH — Take Rest!";
-        else if (bpm < 60) msg = "💪 Warm up a bit";
-        else msg = "✅ Normal HR";
-      } else if (mode === "coma") {
-        if (bpm < 45) msg = "❗ Risky — Low HR!";
-        else if (bpm > 120) msg = "⚠️ Unstable HR";
-        else msg = "💚 Stable — Not Risky";
+        if (mode === "gym") {
+          if (bpm > 160) msg = "Heart rate is elevated. Consider resting.";
+          else if (bpm < 60) msg = "Heart rate is low. Begin light exercise.";
+          else msg = "Heart rate is within the normal range.";
+        } 
+        else if (mode === "patient") {
+          if (bpm < 45) msg = "Heart rate is critically low. Immediate attention required.";
+          else if (bpm > 120) msg = "Heart rate is unstable. Monitor closely.";
+          else msg = "Heart rate is stable.";
+        }
+
+        const statusEl = document.getElementById("status");
+        statusEl.textContent = `BPM: ${bpm} | ${msg}`;
+        statusEl.style.color =
+          bpm > 160 || bpm < 45 ? "#ff5c5c" : bpm > 120 ? "#ffb84d" : "#a8ff98";
+      } catch (err) {
+        console.error("Error fetching BPM:", err);
       }
-
-      document.getElementById("status").textContent = `BPM: ${bpm} | ${msg}`;
     }
 
     setInterval(updateStatus, 1000);
+
+    // Mirror Toggle
+    document.getElementById("mirrorBtn").addEventListener("click", async () => {
+      const feed = document.getElementById("feed");
+      const btn = document.getElementById("mirrorBtn");
+      const status = document.getElementById("status");
+
+      if (!mirrorActive) {
+        feed.style.opacity = "0.3";
+        status.textContent = "Mirror mode is active locally.";
+        btn.textContent = "Close Mirror View";
+        mirrorActive = true;
+        await fetch("/mirror", { method: "POST" });
+      } else {
+        feed.style.opacity = "1";
+        btn.textContent = "Open Mirror View";
+        status.textContent = "Web feed restored.";
+        mirrorActive = false;
+        await fetch("/mirror_stop", { method: "POST" });
+      }
+    });
   </script>
 </body>
 </html>

@@ -13,7 +13,6 @@ from camera_source import get_camera_source
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 CONFIDENCE = 0.4
 SMOOTH_WINDOW = 5
-ROI_DISPLAY = True
 FPS = 30
 BUFFER_SIZE = int(FPS * 15)
 BPM_SMOOTHING_WINDOW = 10
@@ -30,7 +29,7 @@ def bandpass_filter(data, low=0.75, high=3, fs=FPS, order=4):
     return filtfilt(b, a, data)
 
 # =========================================
-# 📦 MODEL LOAD (once globally)
+# 📦 MODEL LOAD
 # =========================================
 model_path = "models/yolov8n-face-lindevs.onnx"
 if not os.path.isfile(model_path):
@@ -55,7 +54,7 @@ def check_camera_health(cap):
 # =========================================
 # 🚀 MAIN GENERATOR FUNCTION
 # =========================================
-def get_frame_and_bpm():
+def get_frame_and_bpm(show_overlay=True):
     print("[INFO] Initializing camera for frame + BPM generator...")
     cap = get_camera_source()
     if not cap:
@@ -78,9 +77,13 @@ def get_frame_and_bpm():
         results = model(frame, conf=CONFIDENCE, verbose=False)
         boxes = results[0].boxes.xyxy.cpu().numpy()
 
+        # =============================
+        # 🧍 FACE DETECTION
+        # =============================
         if len(boxes) == 0:
-            cv2.putText(frame, "No Face Detected", (200, 240),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+            if show_overlay:
+                cv2.putText(frame, "No Face Detected", (200, 240),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
             yield frame, 0
             continue
 
@@ -105,12 +108,12 @@ def get_frame_and_bpm():
         re_x1, re_x2 = x1 + int(0.62 * face_w), x1 + int(0.82 * face_w)
         right_roi = frame[re_y1:re_y2, re_x1:re_x2]
 
-        if ROI_DISPLAY:
-            cv2.rectangle(frame, (fh_x1, fh_y1), (fh_x2, fh_y2), (255, 0, 0), 2)
-            cv2.rectangle(frame, (le_x1, le_y1), (le_x2, le_y2), (0, 0, 255), 2)
-            cv2.rectangle(frame, (re_x1, re_y1), (re_x2, re_y2), (0, 255, 255), 2)
+        # =============================
+        # 💚 GREEN SIGNAL EXTRACTION
+        # =============================
+        def mean_green(region):
+            return region[:, :, 1].mean() if region.size else 0
 
-        def mean_green(region): return region[:, :, 1].mean() if region.size else 0
         forehead_buffer.append(mean_green(forehead_roi))
         left_eye_buffer.append(mean_green(left_roi))
         right_eye_buffer.append(mean_green(right_roi))
@@ -136,12 +139,21 @@ def get_frame_and_bpm():
                     bpm_history.append(bpm)
                     bpm_display = int(np.mean(bpm_history))
 
-        if len(forehead_buffer) < BUFFER_SIZE:
-            cv2.putText(frame, "Collecting Signal...", (20, 60),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+        # =============================
+        # 🖼️ OVERLAYS (Only if enabled)
+        # =============================
+        if show_overlay:
+            # Draw ROI rectangles
+            cv2.rectangle(frame, (fh_x1, fh_y1), (fh_x2, fh_y2), (255, 0, 0), 2)
+            cv2.rectangle(frame, (le_x1, le_y1), (le_x2, le_y2), (0, 0, 255), 2)
+            cv2.rectangle(frame, (re_x1, re_y1), (re_x2, re_y2), (0, 255, 255), 2)
 
-        cv2.putText(frame, f"Heart Rate: {bpm_display} BPM", (20, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+            # Status texts
+            if len(forehead_buffer) < BUFFER_SIZE:
+                cv2.putText(frame, "Collecting Signal...", (20, 60),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
+            cv2.putText(frame, f"Heart Rate: {bpm_display} BPM", (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
 
         yield frame, bpm_display
 
@@ -149,10 +161,10 @@ def get_frame_and_bpm():
     cv2.destroyAllWindows()
 
 # =========================================
-# 🧪 TEST MODE (only runs when executed directly)
+# 🧪 DEBUG MODE (Standalone)
 # =========================================
 if __name__ == "__main__":
-    for f, bpm in get_frame_and_bpm():
+    for f, bpm in get_frame_and_bpm(show_overlay=True):
         cv2.imshow("Debug Heart Rate Detector", f)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
