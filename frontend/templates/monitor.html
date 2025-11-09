@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Heart Rate Monitor</title>
+  <meta charset="UTF-8">
+  <style>
+    body { background: #000; color: #0f0; text-align: center; font-family: monospace; }
+    h1 { color: #0ff; }
+    #feed { float: right; width: 45%; margin: 20px; border: 2px solid #0f0; }
+    #status { font-size: 30px; margin-top: 120px; }
+  </style>
+</head>
+<body>
+  <h1>{{ mode|capitalize }} Mode</h1>
+  <img id="feed" src="/video_feed" />
+  <div id="status">Loading BPM...</div>
+
+  <script>
+    const mode = "{{ mode }}";
+
+    async function updateStatus() {
+      const res = await fetch('/bpm');
+      const bpm = parseInt(await res.text()) || 0;
+      let msg = "";
+
+      if (mode === "gym") {
+        if (bpm > 160) msg = "⚠️ HR HIGH — Take Rest!";
+        else if (bpm < 60) msg = "💪 Warm up a bit";
+        else msg = "✅ Normal HR";
+      } else if (mode === "coma") {
+        if (bpm < 45) msg = "❗ Risky — Low HR!";
+        else if (bpm > 120) msg = "⚠️ Unstable HR";
+        else msg = "💚 Stable — Not Risky";
+      }
+
+      document.getElementById("status").textContent = `BPM: ${bpm} | ${msg}`;
+    }
+
+    setInterval(updateStatus, 1000);
+  </script>
+</body>
+</html>
